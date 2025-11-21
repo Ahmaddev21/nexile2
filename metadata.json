@@ -1,0 +1,7 @@
+{
+  "name": "Nexile Pharmacy OS",
+  "description": "Enterprise-grade SaaS pharmacy management platform with multi-branch support, AI analytics, and real-time inventory tracking.",
+  "requestFramePermissions": [
+    "camera"
+  ]
+}
