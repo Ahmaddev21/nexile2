@@ -1,11 +1,10 @@
-
-import React, { createContext, useContext, useState, ReactNode, useMemo } from 'react';
+import React, { createContext, useContext, useState, ReactNode, useEffect } from 'react';
 import { User, UserRole } from '../types';
-import { MANAGER_ACCESS_CODE, TRIAL_DAYS } from '../constants';
+import api from '../services/api';
 import { useData } from './DataContext';
 
 interface AuthContextType {
-  user: Omit<User, 'password'> | null;
+  user: User | null;
   isAuthenticated: boolean;
   activeBranchId: string | null;
   isTrialExpired: boolean;
@@ -18,167 +17,100 @@ interface AuthContextType {
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
 export const AuthProvider = ({ children }: { children?: ReactNode }) => {
-  const { users, branches, registerUser, addBranch, hashPassword } = useData();
-  const [user, setUser] = useState<Omit<User, 'password'> | null>(null);
+  const { refreshData } = useData();
+  const [user, setUser] = useState<User | null>(null);
   const [activeBranchId, setActiveBranchId] = useState<string | null>(null);
+  const [isLoading, setIsLoading] = useState(true);
 
-  // Check Trial Status
-  const isTrialExpired = useMemo(() => {
-      if (!user) return false;
-      // In a SaaS, usually the Organization (Owner) holds the trial. 
-      // Since this is a MVP, we track based on the current user's creation date 
-      // or ideally the Owner's creation date associated with this tenant.
-      const now = Date.now();
-      const msInDay = 24 * 60 * 60 * 1000;
-      const daysSinceCreation = (now - user.createdAt) / msInDay;
-      return daysSinceCreation > TRIAL_DAYS;
-  }, [user]);
+  // Check for existing token on mount
+  useEffect(() => {
+    const checkAuth = async () => {
+      const token = localStorage.getItem('nexile_token');
+      if (token) {
+        try {
+          const res = await api.get('/auth/me');
+          setUser(res.data);
+          
+          // Set initial active branch based on role
+          if (res.data.role === UserRole.PHARMACIST && res.data.assignedBranchId) {
+            setActiveBranchId(res.data.assignedBranchId);
+          }
+          
+          // Trigger data fetch
+          refreshData(); 
+        } catch (err) {
+          console.error("Session expired or invalid");
+          localStorage.removeItem('nexile_token');
+        }
+      }
+      setIsLoading(false);
+    };
+    checkAuth();
+  }, []);
+
+  const isTrialExpired = false; // Backend should handle trial logic in production
 
   const login = async (email: string, password: string, role: UserRole, branchName?: string, accessCode?: string): Promise<boolean> => {
-    return new Promise((resolve, reject) => {
-        const cleanEmail = email.trim().toLowerCase();
-        const cleanPassword = password.trim();
-
-        // 1. Find User
-        const userByEmail = users.find(u => u.email.toLowerCase() === cleanEmail);
-
-        if (!userByEmail) {
-            reject(new Error("Account not found. Please sign up."));
-            return;
-        }
-
-        // 2. Check Role Match
-        if (userByEmail.role !== role) {
-            reject(new Error(`Role Mismatch: This email is registered as ${userByEmail.role}. Please switch the role tab.`));
-            return;
-        }
-
-        // 3. Password Validation (Hash comparison)
-        if (userByEmail.password !== hashPassword(cleanPassword)) {
-            reject(new Error("Incorrect password."));
-            return;
-        }
-
-        // 4. Security Checks for Manager
-        if (role === UserRole.MANAGER) {
-            if (accessCode !== MANAGER_ACCESS_CODE) {
-                reject(new Error("Invalid Manager Access Code"));
-                return;
-            }
-        }
-
-        // 5. Branch Validation for Pharmacist
-        let finalBranchId = userByEmail.assignedBranchId;
-        if (role === UserRole.PHARMACIST) {
-             if (!userByEmail.assignedBranchId) {
-                 reject(new Error("Account error: No branch assigned. Contact support."));
-                 return;
-             }
-
-             // Critical: Verify the branch still exists in the system
-             const branchExists = branches.some(b => b.id === userByEmail.assignedBranchId);
-             if (!branchExists) {
-                 reject(new Error("System Error: Assigned branch no longer exists. Contact Owner."));
-                 return;
-             }
-             
-             finalBranchId = userByEmail.assignedBranchId;
-        }
-
-        // Login Success - Sanitize User Object (Remove Password)
-        const { password: _, ...safeUser } = userByEmail;
-        setUser(safeUser);
+    try {
+        const res = await api.post('/auth/login', { email, password, role, branchName, accessCode });
+        const { token, user } = res.data;
         
-        // Set Active Branch View
-        if (role === UserRole.OWNER || role === UserRole.MANAGER) {
-            setActiveBranchId(null); 
+        localStorage.setItem('nexile_token', token);
+        setUser(user);
+        
+        if (user.role === UserRole.PHARMACIST && user.assignedBranchId) {
+            setActiveBranchId(user.assignedBranchId);
         } else {
-            setActiveBranchId(finalBranchId || null);
+            setActiveBranchId(null);
         }
         
-        resolve(true);
-    });
+        refreshData();
+        return true;
+    } catch (err: any) {
+        throw new Error(err.response?.data?.message || "Login failed");
+    }
   };
 
   const signup = async (name: string, email: string, password: string, role: UserRole, branchName?: string, accessCode?: string): Promise<boolean> => {
-    return new Promise((resolve, reject) => {
-            const cleanEmail = email.trim().toLowerCase();
-            const cleanPassword = password.trim();
-            
-            // 1. Duplicate Check
-            if (users.some(u => u.email.toLowerCase() === cleanEmail)) {
-                reject(new Error("Email already registered. Please sign in."));
-                return;
-            }
+    try {
+        const res = await api.post('/auth/register', { 
+            name, 
+            email, 
+            password, 
+            role, 
+            branchName, 
+            accessCode 
+        });
+        
+        const { token, user } = res.data;
+        localStorage.setItem('nexile_token', token);
+        setUser(user);
 
-            // 2. Branch Logic
-            let assignedBranchId: string | undefined = undefined;
-            const cleanedBranchName = branchName?.trim() || '';
-            let managedBranchIds: string[] | undefined = undefined;
+        if (user.role === UserRole.PHARMACIST && user.assignedBranchId) {
+            setActiveBranchId(user.assignedBranchId);
+        } else {
+            setActiveBranchId(null);
+        }
 
-            if (role === UserRole.PHARMACIST) {
-                 if (!cleanedBranchName) {
-                    reject(new Error("Branch name is required for pharmacists."));
-                    return;
-                 }
-                 
-                 // Check if branch exists
-                 let targetBranch = branches.find(b => b.name.toLowerCase() === cleanedBranchName.toLowerCase());
-                 
-                 if (!targetBranch) {
-                     targetBranch = addBranch(cleanedBranchName, 'New Location');
-                 }
-                 assignedBranchId = targetBranch.id;
-
-            } else if (role === UserRole.MANAGER) {
-                if (accessCode !== MANAGER_ACCESS_CODE) {
-                    reject(new Error("Invalid Manager Access Code. Contact Owner."));
-                    return;
-                }
-                assignedBranchId = undefined;
-                managedBranchIds = []; 
-            } else if (role === UserRole.OWNER) {
-                if (cleanedBranchName) {
-                    addBranch(cleanedBranchName, 'Main HQ');
-                }
-                assignedBranchId = undefined;
-            }
-
-            // Note: Password passed here will be hashed by registerUser in DataContext
-            const newUser: User = {
-                id: `user-${Date.now()}`,
-                name,
-                email: cleanEmail,
-                role,
-                password: cleanPassword, 
-                assignedBranchId,
-                managedBranchIds,
-                createdAt: Date.now()
-            };
-
-            registerUser(newUser);
-            
-            // Sanitize for session state
-            const { password: _, ...safeUser } = newUser;
-            setUser(safeUser);
-            
-            if (role === UserRole.PHARMACIST && assignedBranchId) {
-                 setActiveBranchId(assignedBranchId);
-            } else {
-                 setActiveBranchId(null);
-            }
-
-            resolve(true);
-    });
+        refreshData();
+        return true;
+    } catch (err: any) {
+        throw new Error(err.response?.data?.message || "Registration failed");
+    }
   };
 
   const logout = () => {
+    localStorage.removeItem('nexile_token');
     setUser(null);
     setActiveBranchId(null);
   };
 
   const setActiveBranch = (branchId: string) => {
     setActiveBranchId(branchId === "" ? null : branchId); 
+  }
+
+  if (isLoading) {
+      return <div className="min-h-screen flex items-center justify-center bg-slate-50 dark:bg-slate-950">Loading Nexile OS...</div>;
   }
 
   return (
