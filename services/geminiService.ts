@@ -1,11 +1,10 @@
-
 import { GoogleGenAI } from "@google/genai";
 import { Product, Transaction } from '../types';
 
 // Initialize Gemini
-// NOTE: In a real environment, this key comes from env vars. 
-// The prompt instructs to assume process.env.API_KEY is available.
-const ai = new GoogleGenAI({ apiKey: process.env.API_KEY || '' });
+// The API key must be obtained exclusively from the environment variable process.env.API_KEY.
+// Assume this variable is pre-configured, valid, and accessible in the execution context.
+const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
 
 export const generateBusinessInsights = async (
   products: Product[], 

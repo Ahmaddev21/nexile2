@@ -56,12 +56,3 @@ export interface AnalyticsSummary {
   lowStockCount: number;
   expiringSoonCount: number;
 }
-
-// API Key needs to be simulated as available in environment
-declare global {
-  interface Window {
-    env: {
-      API_KEY: string;
-    }
-  }
-}

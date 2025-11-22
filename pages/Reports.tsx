@@ -7,7 +7,7 @@ import {
     FileText, Download, Calendar, Printer, Share2, 
     TrendingUp, AlertTriangle, Package, DollarSign, 
     FileSpreadsheet, ArrowRight, CheckCircle, Search, Filter,
-    Building2 as BuildingIcon, Clock as ClockIcon // Explicit import aliases
+    Building2 as BuildingIcon, Clock as ClockIcon 
 } from 'lucide-react';
 
 type ReportType = 'DAILY_SALES' | 'STOCK_LEVELS' | 'LOW_STOCK' | 'EXPIRY_RISK' | 'PROFIT_LOSS' | 'BRANCH_PERF';
@@ -494,6 +494,25 @@ const Reports = () => {
       link.click();
   };
 
+  const handleShareWhatsApp = () => {
+      if (!selectedReport) return;
+      const { txs } = getFilteredData();
+      const totalRevenue = txs.reduce((sum, t) => sum + t.totalAmount, 0).toFixed(2);
+      const txCount = txs.length;
+      
+      const text = `*Nexile Report: ${selectedReport.title}*
+Branch: ${currentBranchName}
+Date: ${dateRange.start} to ${dateRange.end}
+------------------
+Total Revenue: $${totalRevenue}
+Transactions: ${txCount}
+------------------
+Generated via Nexile OS`;
+
+      const url = `https://wa.me/?text=${encodeURIComponent(text)}`;
+      window.open(url, '_blank');
+  };
+
   return (
     <div className="p-6 max-w-7xl mx-auto pb-24 animate-fade-in">
       <div className="mb-8">
@@ -657,6 +676,13 @@ const Reports = () => {
                           className="flex items-center justify-center gap-3 w-full py-3 bg-white border border-slate-200 text-slate-600 rounded-xl font-bold hover:bg-slate-50 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                       >
                           <Printer size={18} /> Print PDF
+                      </button>
+                      <button 
+                          onClick={handleShareWhatsApp}
+                          disabled={!showPreview}
+                          className="flex items-center justify-center gap-3 w-full py-3 bg-[#25D366]/10 text-[#25D366] border border-[#25D366]/20 rounded-xl font-bold hover:bg-[#25D366]/20 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                      >
+                          <Share2 size={18} /> Share WhatsApp
                       </button>
                   </div>
               </div>
