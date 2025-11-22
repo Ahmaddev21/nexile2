@@ -1,3 +1,4 @@
+
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
@@ -58,8 +59,12 @@ const AuthPage = () => {
       }
       navigate('/');
     } catch (err: any) {
+      console.error("Auth Error:", err);
       // Capture real server error or fallback
-      setError(err.response?.data?.message || err.message || "Authentication failed");
+      // Check for response.data.message (standard express error)
+      const serverMsg = err.response?.data?.message;
+      const fallbackMsg = err.message || "Authentication failed";
+      setError(serverMsg || fallbackMsg);
     } finally {
       setIsLoading(false);
     }

@@ -1,16 +1,30 @@
 import axios from 'axios';
 
-// Robust function to get API URL without crashing if import.meta is undefined
 const getBaseUrl = () => {
   try {
-    // @ts-ignore - Ignore TypeScript errors for import.meta checks
+    // Check if import.meta is available (Vite environment)
+    // @ts-ignore
     if (typeof import.meta !== 'undefined' && import.meta.env) {
+      // 1. Check for explicit Environment Variable
       // @ts-ignore
-      return import.meta.env.VITE_API_URL || 'http://localhost:5000/api';
+      if (import.meta.env.VITE_API_URL) {
+        // @ts-ignore
+        return import.meta.env.VITE_API_URL;
+      }
+      
+      // 2. Check if we are in PRODUCTION mode
+      // @ts-ignore
+      if (import.meta.env.PROD) {
+        // In production (Railway/Vercel), default to relative path 
+        // This ensures it talks to the backend on the same domain
+        return '/api';
+      }
     }
   } catch (e) {
-    // Silently fail and fall back to default
+    // Silent fail
   }
+  
+  // 3. Default Fallback for Local Development
   return 'http://localhost:5000/api';
 };
 
@@ -41,8 +55,6 @@ api.interceptors.response.use(
   (response) => response,
   (error) => {
     if (error.response && (error.response.status === 401 || error.response.status === 403)) {
-      // Optional: Clear token and redirect to login if session expires
-      // To prevent infinite loops, we only redirect if not already on auth
       if (error.response.status === 401 && !window.location.pathname.includes('/auth')) {
           console.warn('Session expired. Redirecting to login.');
           localStorage.removeItem('nexile_token');
