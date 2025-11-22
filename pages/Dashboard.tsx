@@ -241,6 +241,12 @@ const ManagerDashboard = ({
                                 </div>
                             </div>
                         ))}
+                        {topProducts.length === 0 && (
+                            <div className="flex flex-col items-center justify-center h-32 text-slate-400 text-xs">
+                                <TrendingUp size={24} className="mb-2 opacity-20" />
+                                <p>No sufficient sales data yet.</p>
+                            </div>
+                        )}
                         <div className="pt-4 border-t border-slate-100 dark:border-slate-800">
                             <div className="flex items-center gap-2 text-xs text-slate-500">
                                 <TrendingDown size={14} className="text-red-500" />
@@ -528,7 +534,17 @@ const Dashboard = () => {
   }
 
   if (user?.role === UserRole.OWNER) {
-      const globalSales = transactions.reduce((sum, t) => sum + t.totalAmount, 0);
+      // FIX: Calculate true MTD (Month To Date) Sales
+      const currentMonth = new Date().getMonth();
+      const currentYear = new Date().getFullYear();
+      
+      const globalSales = transactions
+        .filter(t => {
+            const d = new Date(t.date);
+            return d.getMonth() === currentMonth && d.getFullYear() === currentYear;
+        })
+        .reduce((sum, t) => sum + t.totalAmount, 0);
+
       return <OwnerDashboard 
           globalSales={globalSales}
           globalTx={transactions.length}

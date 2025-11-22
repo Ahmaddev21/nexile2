@@ -6,7 +6,8 @@ import { UserRole } from '../types';
 import { 
     FileText, Download, Calendar, Printer, Share2, 
     TrendingUp, AlertTriangle, Package, DollarSign, 
-    FileSpreadsheet, ArrowRight, CheckCircle, Search, Filter
+    FileSpreadsheet, ArrowRight, CheckCircle, Search, Filter,
+    Building2 as BuildingIcon, Clock as ClockIcon // Explicit import aliases
 } from 'lucide-react';
 
 type ReportType = 'DAILY_SALES' | 'STOCK_LEVELS' | 'LOW_STOCK' | 'EXPIRY_RISK' | 'PROFIT_LOSS' | 'BRANCH_PERF';
@@ -49,7 +50,7 @@ const REPORT_TYPES: ReportConfig[] = [
         id: 'EXPIRY_RISK',
         title: 'Expiry Risk Report',
         description: 'Products expiring within 30, 60, or 90 days.',
-        icon: ClockIcon, // Defined below to avoid import error if not standard
+        icon: ClockIcon, 
         roles: [UserRole.PHARMACIST, UserRole.MANAGER, UserRole.OWNER],
         color: 'bg-red-100 text-red-600'
     },
@@ -65,15 +66,11 @@ const REPORT_TYPES: ReportConfig[] = [
         id: 'BRANCH_PERF',
         title: 'Branch Performance',
         description: 'Comparative analysis of sales and efficiency across locations.',
-        icon: BuildingIcon, // Defined below
+        icon: BuildingIcon,
         roles: [UserRole.MANAGER, UserRole.OWNER],
         color: 'bg-indigo-100 text-indigo-600'
     }
 ];
-
-// Fallback icons
-function ClockIcon(props: any) { return <Calendar {...props} />; }
-function BuildingIcon(props: any) { return <Package {...props} />; }
 
 const Reports = () => {
   const { transactions, products, branches } = useData();
@@ -310,6 +307,78 @@ const Reports = () => {
                   </div>
               );
 
+          case 'EXPIRY_RISK':
+              const today = new Date();
+              const ninetyDays = new Date();
+              ninetyDays.setDate(today.getDate() + 90);
+              
+              const expiringItems = prods.filter(p => {
+                  const expDate = new Date(p.expiryDate);
+                  return expDate <= ninetyDays;
+              }).sort((a,b) => new Date(a.expiryDate).getTime() - new Date(b.expiryDate).getTime());
+
+              return (
+                  <div>
+                       <div className="flex items-center gap-2 mb-4 text-red-600 bg-red-50 p-3 rounded-lg">
+                          <ClockIcon size={18} />
+                          <span className="font-bold">{expiringItems.length} Items Expiring Soon (90 Days)</span>
+                      </div>
+                      <table className="w-full text-sm text-left">
+                          <thead className="bg-slate-100 text-slate-600">
+                              <tr>
+                                  <th className="p-2">Expiry Date</th>
+                                  <th className="p-2">Product</th>
+                                  <th className="p-2">Batch</th>
+                                  <th className="p-2 text-center">Stock</th>
+                              </tr>
+                          </thead>
+                          <tbody>
+                              {expiringItems.map(p => (
+                                  <tr key={p.id} className="border-b border-slate-100">
+                                      <td className="p-2 font-mono text-red-600 font-bold">{p.expiryDate}</td>
+                                      <td className="p-2 font-medium">{p.name}</td>
+                                      <td className="p-2 text-xs">{p.batchNumber}</td>
+                                      <td className="p-2 text-center">{p.stock}</td>
+                                  </tr>
+                              ))}
+                          </tbody>
+                      </table>
+                  </div>
+              );
+
+          case 'BRANCH_PERF':
+              const branchStats: Record<string, number> = {};
+              txs.forEach(t => {
+                  branchStats[t.branchId] = (branchStats[t.branchId] || 0) + t.totalAmount;
+              });
+
+              return (
+                  <div className="space-y-4">
+                      <div className="p-4 bg-indigo-50 rounded-xl border border-indigo-100">
+                          <h3 className="font-bold text-indigo-900 mb-2">Network Overview</h3>
+                          <p className="text-sm text-indigo-700">Comparative revenue analysis across active locations.</p>
+                      </div>
+                      <table className="w-full text-sm text-left">
+                          <thead className="bg-slate-100 text-slate-600">
+                              <tr>
+                                  <th className="p-2">Branch Name</th>
+                                  <th className="p-2">Location</th>
+                                  <th className="p-2 text-right">Total Revenue</th>
+                              </tr>
+                          </thead>
+                          <tbody>
+                              {branches.filter(b => branchStats[b.id] !== undefined).map(b => (
+                                  <tr key={b.id} className="border-b border-slate-100">
+                                      <td className="p-2 font-bold">{b.name}</td>
+                                      <td className="p-2 text-slate-500 text-xs">{b.location}</td>
+                                      <td className="p-2 text-right font-mono font-bold">${branchStats[b.id]?.toFixed(2)}</td>
+                                  </tr>
+                              ))}
+                          </tbody>
+                      </table>
+                  </div>
+              );
+
           default:
               return <div className="p-8 text-center text-slate-500">Preview not available for this report type.</div>;
       }
@@ -322,7 +391,7 @@ const Reports = () => {
       let headers: string[] = [];
       let rows: string[][] = [];
       
-      // Timestamp for filename: e.g. Daily_Sales_2025-10-26_1430.csv
+      // Timestamp for filename
       const now = new Date();
       const timestamp = `${now.getFullYear()}-${(now.getMonth()+1).toString().padStart(2,'0')}-${now.getDate().toString().padStart(2,'0')}_${now.getHours().toString().padStart(2,'0')}${now.getMinutes().toString().padStart(2,'0')}`;
       let filename = `${selectedReport.id}_${currentBranchName.replace(/\s+/g, '_')}_${timestamp}.csv`;
@@ -357,8 +426,58 @@ const Reports = () => {
               p.stock.toString(),
               (p.stock * p.costPrice).toFixed(2)
           ]);
+      } else if (selectedReport.id === 'EXPIRY_RISK') {
+          const today = new Date();
+          const ninetyDays = new Date();
+          ninetyDays.setDate(today.getDate() + 90);
+          
+          headers = ['Product Name', 'Batch', 'Expiry Date', 'Days Remaining', 'Current Stock'];
+          rows = prods.filter(p => {
+              const exp = new Date(p.expiryDate);
+              return exp <= ninetyDays;
+          }).map(p => {
+               const diffTime = new Date(p.expiryDate).getTime() - today.getTime();
+               const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+               return [
+                  p.name,
+                  p.batchNumber,
+                  p.expiryDate,
+                  diffDays.toString(),
+                  p.stock.toString()
+               ];
+          });
+      } else if (selectedReport.id === 'BRANCH_PERF') {
+          headers = ['Branch ID', 'Branch Name', 'Location', 'Total Revenue', 'Tx Count'];
+          const stats: Record<string, {rev: number, count: number}> = {};
+          txs.forEach(t => {
+               if(!stats[t.branchId]) stats[t.branchId] = {rev: 0, count: 0};
+               stats[t.branchId].rev += t.totalAmount;
+               stats[t.branchId].count += 1;
+          });
+          rows = branches.map(b => [
+              b.id,
+              b.name,
+              b.location,
+              (stats[b.id]?.rev || 0).toFixed(2),
+              (stats[b.id]?.count || 0).toString()
+          ]);
+      } else if (selectedReport.id === 'PROFIT_LOSS') {
+          const revenue = txs.reduce((sum, t) => sum + t.totalAmount, 0);
+          let cogs = 0;
+          txs.forEach(t => t.items.forEach(i => {
+               const p = prods.find(prod => prod.id === i.productId);
+               cogs += (p?.costPrice || i.price * 0.7) * i.quantity;
+          }));
+          const profit = revenue - cogs;
+          
+          headers = ['Metric', 'Value'];
+          rows = [
+              ['Total Revenue', revenue.toFixed(2)],
+              ['Cost of Goods Sold', cogs.toFixed(2)],
+              ['Net Profit', profit.toFixed(2)],
+              ['Margin %', ((profit/revenue)*100).toFixed(2) + '%']
+          ];
       } else {
-          // Generic Fallback
           headers = ['Date', 'Value'];
           rows = [['No specific CSV logic defined for this report type']];
       }
