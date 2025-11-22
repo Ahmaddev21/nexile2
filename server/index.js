@@ -17,9 +17,15 @@ app.use(cors());
 app.use(express.json());
 
 // Database Connection
-mongoose.connect(process.env.MONGODB_URI)
+// FIX: Added fallback to local DB if env variable is missing
+const MONGODB_URI = process.env.MONGODB_URI || 'mongodb://127.0.0.1:27017/nexile';
+
+mongoose.connect(MONGODB_URI)
   .then(() => console.log('✅ MongoDB Connected'))
-  .catch(err => console.error('❌ MongoDB Connection Error:', err));
+  .catch(err => {
+      console.error('❌ MongoDB Connection Error:', err);
+      console.log('HINT: Ensure MongoDB Community Server is running on your computer.');
+  });
 
 // Routes
 app.use('/api/auth', authRoutes);

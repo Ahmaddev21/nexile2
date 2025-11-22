@@ -6,7 +6,9 @@ import Branch from '../models/Branch.js';
 
 const router = express.Router();
 
+// FIX: Added fallbacks so it works without .env in development
 const MANAGER_ACCESS_CODE = process.env.MANAGER_CODE || "123456";
+const JWT_SECRET = process.env.JWT_SECRET || "local_dev_secret_key_123";
 
 // REGISTER
 router.post('/register', async (req, res) => {
@@ -57,12 +59,14 @@ router.post('/register', async (req, res) => {
     await user.save();
 
     // Generate Token
-    const token = jwt.sign({ id: user._id, role: user.role }, process.env.JWT_SECRET, { expiresIn: '1d' });
+    // FIX: Use the fallback JWT_SECRET defined above
+    const token = jwt.sign({ id: user._id, role: user.role }, JWT_SECRET, { expiresIn: '1d' });
 
     res.json({ token, user: { ...user._doc, password: undefined, id: user._id } });
 
   } catch (err) {
-    res.status(500).json({ message: err.message });
+    console.error("Registration Error:", err);
+    res.status(500).json({ message: "Server error during registration. Check console." });
   }
 });
 
@@ -89,12 +93,13 @@ router.post('/login', async (req, res) => {
         return res.status(403).json({ message: 'Invalid Access Code' });
     }
 
-    const token = jwt.sign({ id: user._id, role: user.role }, process.env.JWT_SECRET, { expiresIn: '1d' });
+    const token = jwt.sign({ id: user._id, role: user.role }, JWT_SECRET, { expiresIn: '1d' });
 
     res.json({ token, user: { ...user._doc, password: undefined, id: user._id } });
 
   } catch (err) {
-    res.status(500).json({ message: err.message });
+    console.error("Login Error:", err);
+    res.status(500).json({ message: "Server error during login." });
   }
 });
 
@@ -104,7 +109,7 @@ router.get('/me', async (req, res) => {
     if (!token) return res.status(401).json({ message: 'No token' });
 
     try {
-        const decoded = jwt.verify(token, process.env.JWT_SECRET);
+        const decoded = jwt.verify(token, JWT_SECRET);
         const user = await User.findById(decoded.id).select('-password');
         if (!user) return res.status(404).json({ message: 'User not found' });
         res.json({ ...user._doc, id: user._id });
