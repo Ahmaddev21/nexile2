@@ -1,4 +1,3 @@
-
 import React, { useState, useMemo } from 'react';
 import { useData } from '../contexts/DataContext';
 import { useAuth } from '../contexts/AuthContext';
@@ -82,7 +81,11 @@ const Reports = () => {
 
   // --- DATA AGGREGATION ---
   const effectiveBranchId = user?.role === UserRole.PHARMACIST ? user.assignedBranchId : activeBranchId;
-  const currentBranchName = effectiveBranchId ? branches.find(b => b.id === effectiveBranchId)?.name : "Global Enterprise";
+  
+  // Fix: Explicitly handle potential undefined return from find()
+  // This resolves "Object is possibly undefined" build error.
+  const foundBranch = effectiveBranchId ? branches.find(b => b.id === effectiveBranchId) : null;
+  const currentBranchName = foundBranch?.name ?? "Global Enterprise";
 
   const handlePresetChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
       const preset = e.target.value;
