@@ -51,7 +51,7 @@ const Layout = () => {
 
       <Sidebar isOpen={isSidebarOpen} onClose={() => setIsSidebarOpen(false)} />
       
-      <main className={`flex-1 flex flex-col min-h-screen transition-all duration-300 relative print:ml-0 lg:ml-64`}>
+      <main className={`flex-1 flex flex-col min-h-screen transition-all duration-300 relative print:ml-0 lg:ml-72`}>
         {/* Header / Top Bar */}
         <header className="h-16 bg-white/50 dark:bg-slate-900/50 backdrop-blur-md border-b border-slate-200 dark:border-slate-800 flex items-center justify-between px-4 sm:px-6 sticky top-0 z-10 print:hidden">
              <div className="flex items-center gap-3">
