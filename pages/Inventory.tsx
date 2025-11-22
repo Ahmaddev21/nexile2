@@ -23,6 +23,11 @@ const Inventory = () => {
     return products.filter(p => {
         if (user?.role === UserRole.PHARMACIST && !effectiveBranchId) return false;
 
+        // Managers in "All" view should only see their managed branches
+        if (user?.role === UserRole.MANAGER && !effectiveBranchId) {
+             if (!user.managedBranchIds?.includes(p.branchId)) return false;
+        }
+
         const matchesBranch = effectiveBranchId ? p.branchId === effectiveBranchId : true;
         const searchLower = searchTerm.toLowerCase();
         const matchesSearch = 
@@ -124,6 +129,14 @@ const Inventory = () => {
     ? branches.find(b => b.id === effectiveBranchId)?.name 
     : 'All Branches';
 
+  // Filter branches available for selection in modal based on role
+  const availableBranches = useMemo(() => {
+     if (user?.role === UserRole.MANAGER && user.managedBranchIds) {
+         return branches.filter(b => user.managedBranchIds?.includes(b.id));
+     }
+     return branches;
+  }, [branches, user]);
+
   return (
     <div className="space-y-6 animate-fade-in pb-20">
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
@@ -132,12 +145,12 @@ const Inventory = () => {
           <p className="text-slate-500 dark:text-slate-400 text-sm">
             {effectiveBranchId 
               ? `Managing stock for ${currentBranchName}` 
-              : 'Viewing global inventory across all branches'}
+              : user?.role === UserRole.MANAGER ? 'Viewing all assigned branches' : 'Viewing global inventory across all branches'}
           </p>
         </div>
         <button 
             onClick={handleOpenAddModal}
-            disabled={!effectiveBranchId && user?.role !== UserRole.OWNER} 
+            disabled={!effectiveBranchId && user?.role !== UserRole.OWNER && user?.role !== UserRole.MANAGER} 
             className="flex items-center justify-center gap-2 bg-slate-900 dark:bg-white text-white dark:text-slate-900 px-4 py-2 rounded-lg font-medium hover:opacity-90 transition-opacity disabled:opacity-50 disabled:cursor-not-allowed"
         >
             <Plus size={18} />
@@ -360,7 +373,11 @@ const Inventory = () => {
                           <h3 className="text-sm font-bold text-slate-700 dark:text-white mb-2 flex items-center gap-2">
                               <Building2 size={16} className="text-nexile-500"/> Select Destination Branch
                           </h3>
-                          <p className="text-xs text-slate-500 mb-2">Since you are viewing all branches, please specify where this product will be stocked.</p>
+                          <p className="text-xs text-slate-500 mb-2">
+                             {user?.role === UserRole.MANAGER 
+                                ? "Select which of your managed branches will receive this product." 
+                                : "Specify where this product will be stocked."}
+                          </p>
                           <select
                               required
                               className="w-full p-2.5 rounded-lg border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-900 text-slate-900 dark:text-white focus:ring-2 focus:ring-nexile-500 outline-none"
@@ -368,7 +385,7 @@ const Inventory = () => {
                               onChange={(e) => setNewProduct({...newProduct, branchId: e.target.value})}
                           >
                               <option value="">-- Select a Branch --</option>
-                              {branches.map(b => (
+                              {availableBranches.map(b => (
                                   <option key={b.id} value={b.id}>{b.name}</option>
                               ))}
                           </select>

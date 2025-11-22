@@ -348,33 +348,33 @@ const POS = () => {
                 {/* Printable Receipt Area */}
                 <div className="w-full bg-slate-50 dark:bg-slate-950 p-4 rounded-lg border border-dashed border-slate-300 dark:border-slate-700 mb-4 print:border-none print:bg-white print:p-0 print:text-left">
                     <div className="text-center mb-4">
-                        <p className="text-lg font-bold text-slate-900 dark:text-white uppercase">Nexile Pharmacy</p>
-                        <p className="text-xs text-slate-400">{branches.find(b => b.id === activeBranchId)?.name}</p>
-                        <p className="text-xs text-slate-400">{branches.find(b => b.id === activeBranchId)?.location}</p>
+                        <p className="text-lg font-bold text-slate-900 dark:text-black uppercase tracking-wide">Nexile Pharmacy</p>
+                        <p className="text-xs text-slate-400 dark:text-slate-500">{branches.find(b => b.id === activeBranchId)?.name}</p>
+                        <p className="text-xs text-slate-400 dark:text-slate-500">{branches.find(b => b.id === activeBranchId)?.location}</p>
                     </div>
                     
-                    <div className="border-b border-dashed border-slate-300 my-2"></div>
+                    <div className="border-b border-dashed border-slate-300 dark:border-slate-800 my-2"></div>
                     
-                    <div className="space-y-2 mb-4">
+                    <div className="space-y-1 mb-4">
                         {lastTransaction?.items.map((item, i) => (
-                            <div key={i} className="flex justify-between text-sm">
-                                <span>{item.quantity}x {item.name}</span>
+                            <div key={i} className="flex justify-between text-sm font-mono text-slate-700 dark:text-black">
+                                <span className="truncate max-w-[70%]">{item.quantity}x {item.name}</span>
                                 <span>${(item.price * item.quantity).toFixed(2)}</span>
                             </div>
                         ))}
                     </div>
                     
-                    <div className="border-b border-dashed border-slate-300 my-2"></div>
+                    <div className="border-b border-dashed border-slate-300 dark:border-slate-800 my-2"></div>
                     
-                    <div className="flex justify-between font-bold text-lg text-slate-900 dark:text-white">
+                    <div className="flex justify-between font-bold text-lg text-slate-900 dark:text-black">
                         <span>TOTAL</span>
                         <span>${lastTransaction?.totalAmount.toFixed(2)}</span>
                     </div>
                     
-                    <p className="text-[10px] text-slate-400 mt-4 text-center">
-                        PAID VIA {lastTransaction?.paymentMethod} • {new Date().toLocaleString()}
+                    <p className="text-[10px] text-slate-400 dark:text-slate-500 mt-4 text-center font-mono uppercase">
+                        {lastTransaction?.paymentMethod} • {new Date().toLocaleString()}
                     </p>
-                    <p className="text-[10px] text-slate-400 text-center">Trans ID: {lastTransaction?.id}</p>
+                    <p className="text-[10px] text-slate-400 dark:text-slate-500 text-center font-mono">ID: {lastTransaction?.id}</p>
                 </div>
 
                 <div className="flex gap-3 w-full print:hidden">
@@ -386,7 +386,7 @@ const POS = () => {
                     </button>
                     <button 
                         onClick={handlePrintReceipt}
-                        className="flex-1 py-2 bg-nexile-600 hover:bg-nexile-700 text-white rounded-lg font-medium transition-colors flex items-center justify-center gap-2"
+                        className="flex-1 py-2 bg-nexile-600 hover:bg-nexile-700 text-white rounded-lg font-medium transition-colors flex items-center justify-center gap-2 shadow-lg shadow-nexile-500/30"
                     >
                         <Printer size={16} /> Print
                     </button>
