@@ -1,4 +1,3 @@
-
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
@@ -59,7 +58,8 @@ const AuthPage = () => {
       }
       navigate('/');
     } catch (err: any) {
-      setError(err.message || "Authentication failed");
+      // Capture real server error or fallback
+      setError(err.response?.data?.message || err.message || "Authentication failed");
     } finally {
       setIsLoading(false);
     }

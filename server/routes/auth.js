@@ -15,7 +15,7 @@ router.post('/register', async (req, res) => {
 
     // Check duplicates
     const existingUser = await User.findOne({ email });
-    if (existingUser) return res.status(400).json({ message: 'Email already exists' });
+    if (existingUser) return res.status(400).json({ message: 'Email already registered. Please log in.' });
 
     // Role Logic
     let assignedBranchId = undefined;
@@ -23,7 +23,7 @@ router.post('/register', async (req, res) => {
 
     if (role === 'MANAGER') {
         if (accessCode !== MANAGER_ACCESS_CODE) {
-            return res.status(403).json({ message: 'Invalid Access Code' });
+            return res.status(403).json({ message: 'Invalid Manager Access Code' });
         }
     } else if (role === 'PHARMACIST') {
         if (!branchName) return res.status(400).json({ message: 'Branch name required' });
@@ -72,9 +72,14 @@ router.post('/login', async (req, res) => {
     const { email, password, role, branchName, accessCode } = req.body;
 
     const user = await User.findOne({ email });
-    if (!user) return res.status(400).json({ message: 'User not found' });
+    if (!user) return res.status(400).json({ message: 'User not found. Please register first.' });
 
-    if (user.role !== role) return res.status(400).json({ message: 'Role mismatch' });
+    // Informative Role Check
+    if (user.role !== role) {
+        return res.status(400).json({ 
+            message: `Role mismatch. This email is registered as ${user.role}. Please switch to the ${user.role} tab.` 
+        });
+    }
 
     const validPass = await bcrypt.compare(password, user.password);
     if (!validPass) return res.status(400).json({ message: 'Invalid password' });
@@ -82,12 +87,6 @@ router.post('/login', async (req, res) => {
     // Security Checks
     if (role === 'MANAGER' && accessCode !== MANAGER_ACCESS_CODE) {
         return res.status(403).json({ message: 'Invalid Access Code' });
-    }
-
-    // Branch Checks
-    if (role === 'PHARMACIST') {
-        // In simplified MVP, we trust the assigned ID. 
-        // In strict mode, we could verify branchName matches user.assignedBranchId lookup
     }
 
     const token = jwt.sign({ id: user._id, role: user.role }, process.env.JWT_SECRET, { expiresIn: '1d' });

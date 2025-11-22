@@ -20,27 +20,21 @@ router.get('/', verifyToken, async (req, res) => {
 router.post('/', verifyToken, async (req, res) => {
   let session = null;
   try {
-    // HYBRID TRANSACTION LOGIC
-    // 1. Check if the database supports sessions (Replica Set)
-    // This prevents crashes on Standalone/Local MongoDB instances
+    // SAFE SESSION DETECTION
+    // Try to start a session. If it fails (Standalone DB), catch and proceed without transactions.
     try {
-        // @ts-ignore - Internal mongoose check
-        const client = mongoose.connection.getClient();
-        if (client.topology && client.topology.hasSessionSupport()) {
-            session = await mongoose.startSession();
-            session.startTransaction();
-        }
+        session = await mongoose.startSession();
+        session.startTransaction();
     } catch (e) {
-        console.warn("Transactions not supported on this MongoDB instance. Falling back to standard write.");
+        // console.warn("MongoDB Sessions not supported (Standalone). Running in compatibility mode.");
         session = null;
     }
 
-    // 2. Create Transaction Record
-    // Pass session if it exists, otherwise undefined
+    // 1. Create Transaction Record
     const transaction = new Transaction(req.body);
     await transaction.save(session ? { session } : undefined);
 
-    // 3. Update Stock for each item
+    // 2. Update Stock
     for (const item of req.body.items) {
         await Product.findByIdAndUpdate(
             item.productId,
@@ -49,7 +43,6 @@ router.post('/', verifyToken, async (req, res) => {
         );
     }
 
-    // 4. Commit if session exists
     if (session) {
         await session.commitTransaction();
     }
@@ -59,7 +52,6 @@ router.post('/', verifyToken, async (req, res) => {
   } catch (err) {
     console.error("Transaction Failed:", err);
     
-    // Rollback if session was active
     if (session) {
         await session.abortTransaction();
     }
